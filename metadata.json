@@ -1,0 +1,6 @@
+{
+  "name": "DistriQuiero",
+  "description": "Catálogo mayorista y minorista con cotización por bultos y unidades, cierre de pedidos por WhatsApp y panel de administración.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
