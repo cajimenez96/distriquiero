@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { dbService } from '../lib/db-store.ts';
-import { signAuthToken, verifyAuthToken, AuthenticatedRequest } from '../lib/auth.ts';
+import { signAuthToken, verifyAuthToken, type AuthenticatedRequest } from '../lib/auth.ts';
 
 const router = Router();
 

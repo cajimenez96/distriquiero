@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { dbService } from '../lib/db-store.ts';
 import { formatWhatsAppMessage } from '../lib/whatsapp.ts';
-import { authMiddleware, AuthenticatedRequest } from '../lib/auth.ts';
+import { authMiddleware, type AuthenticatedRequest } from '../lib/auth.ts';
 
 const router = Router();
 

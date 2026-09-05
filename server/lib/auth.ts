@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'distriquiero_jwt_secret_dev_key_2026';
 

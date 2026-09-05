@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { dbService } from '../lib/db-store.ts';
-import { authMiddleware, AuthenticatedRequest } from '../lib/auth.ts';
+import { authMiddleware, type AuthenticatedRequest } from '../lib/auth.ts';
 
 const router = Router();
 

@@ -6,7 +6,9 @@ import {
   ProductModel,
   OrderModel,
   AuditLogModel,
-  BannerModel,
+  BannerModel
+} from '../models/index.ts';
+import type {
   IProduct,
   IOrder,
   IUser,

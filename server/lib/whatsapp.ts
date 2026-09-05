@@ -1,4 +1,4 @@
-import { IOrder } from '../models/index.ts';
+import type { IOrder } from '../models/index.ts';
 
 export function formatWhatsAppMessage(order: any, companyPhone?: string): { whatsappUrl: string; formattedMessage: string } {
   const phone = companyPhone || process.env.COMPANY_WHATSAPP_PHONE || '5491145982210';

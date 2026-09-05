@@ -1,7 +1,7 @@
 import { Router, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { uploadToImageKit } from '../lib/imagekit.ts';
-import { authMiddleware, AuthenticatedRequest } from '../lib/auth.ts';
+import { authMiddleware, type AuthenticatedRequest } from '../lib/auth.ts';
 
 const router = Router();
 

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { dbService } from '../lib/db-store.ts';
-import { authMiddleware, requireSuperadmin, AuthenticatedRequest } from '../lib/auth.ts';
+import { authMiddleware, requireSuperadmin, type AuthenticatedRequest } from '../lib/auth.ts';
 
 const router = Router();
 
