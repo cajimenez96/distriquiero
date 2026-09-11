@@ -34,6 +34,16 @@ router.get(['/banners', '/banners/list'], async (_req: Request, res: Response) =
   }
 });
 
+// GET /api/catalog/categories & /api/catalog/categories/list
+router.get(['/categories', '/categories/list'], async (_req: Request, res: Response) => {
+  try {
+    const categories = await dbService.getCategories(false);
+    res.json({ success: true, categories });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al obtener categorías.' });
+  }
+});
+
 // GET /api/catalog/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {

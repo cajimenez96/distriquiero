@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Upload, Eye, EyeOff, ShieldCheck, Box, Tag, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Product } from '../../types/index.ts';
+import { Product, Category } from '../../types/index.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -20,6 +20,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const { token, user } = useAuth();
   const { success, error } = useToast();
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [title, setTitle] = useState('');
   const [sku, setSku] = useState('');
   const [brand, setBrand] = useState('');
@@ -33,6 +34,17 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch('/api/catalog/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (product) {
@@ -239,11 +251,21 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full h-11 px-3 bg-[#f7f7f7] border border-gray-200 rounded-lg text-sm text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#c62828] outline-none"
               >
-                <option value="Almacén">Almacén</option>
-                <option value="Bebidas">Bebidas</option>
-                <option value="Golosinas">Golosinas</option>
-                <option value="Limpieza">Limpieza</option>
-                <option value="Snacks">Snacks</option>
+                {categories.length > 0 ? (
+                  categories.map((c) => (
+                    <option key={c._id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Almacén">Almacén</option>
+                    <option value="Bebidas">Bebidas</option>
+                    <option value="Golosinas">Golosinas</option>
+                    <option value="Limpieza">Limpieza</option>
+                    <option value="Snacks">Snacks</option>
+                  </>
+                )}
               </select>
             </div>
 

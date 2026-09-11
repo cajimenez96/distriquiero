@@ -124,7 +124,7 @@ export interface IAuditLog extends Document {
   userName: string;
   userRole: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PAUSE' | 'STATUS_CHANGE';
-  entity: 'Product' | 'Order' | 'Banner' | 'User';
+  entity: 'Product' | 'Order' | 'Banner' | 'User' | 'Category';
   entityId: string;
   beforeSnapshot: any;
   afterSnapshot: any;
@@ -141,7 +141,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
   },
   entity: {
     type: String,
-    enum: ['Product', 'Order', 'Banner', 'User'],
+    enum: ['Product', 'Order', 'Banner', 'User', 'Category'],
     required: true
   },
   entityId: { type: String, required: true },
@@ -167,3 +167,21 @@ const BannerSchema = new Schema<IBanner>({
   order: { type: Number, default: 0 }
 });
 export const BannerModel: Model<IBanner> = mongoose.models.Banner || mongoose.model<IBanner>('Banner', BannerSchema);
+
+// 7. Category Schema & Model
+export interface ICategory extends Document {
+  name: string;
+  slug: string;
+  order: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+const CategorySchema = new Schema<ICategory>({
+  name: { type: String, required: true, unique: true, trim: true },
+  slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  order: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+export const CategoryModel: Model<ICategory> = mongoose.models.Category || mongoose.model<ICategory>('Category', CategorySchema);
+

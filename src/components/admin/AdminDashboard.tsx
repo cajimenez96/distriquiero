@@ -8,13 +8,17 @@ import {
   ArrowLeft,
   ShieldCheck,
   Store,
-  Bell
+  Bell,
+  Layers,
+  Image
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { OrdersTable } from './OrdersTable.tsx';
 import { ProductsManager } from './ProductsManager.tsx';
 import { AuditLogsView } from './AuditLogsView.tsx';
 import { AdminUsersView } from './AdminUsersView.tsx';
+import { CategoriesManager } from './CategoriesManager.tsx';
+import { BannersManager } from './BannersManager.tsx';
 
 interface AdminDashboardProps {
   onBackToStore: () => void;
@@ -22,7 +26,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore }) => {
   const { user, logout, isSuperadmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'audit' | 'users'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'banners' | 'audit' | 'users'>('orders');
 
   return (
     <div className="min-h-screen bg-[#f7f5f4] text-[#333333] flex flex-col font-sans">
@@ -109,6 +113,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
           </button>
 
           <button
+            onClick={() => setActiveTab('categories')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              activeTab === 'categories'
+                ? 'bg-[#c62828] text-white shadow-xs'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Categorías</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('banners')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              activeTab === 'banners'
+                ? 'bg-[#c62828] text-white shadow-xs'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Image className="w-4 h-4" />
+            <span>Banners & Promos</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('audit')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
               activeTab === 'audit'
@@ -140,6 +168,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6">
         {activeTab === 'orders' && <OrdersTable />}
         {activeTab === 'products' && <ProductsManager />}
+        {activeTab === 'categories' && <CategoriesManager />}
+        {activeTab === 'banners' && <BannersManager />}
         {activeTab === 'audit' && <AuditLogsView />}
         {activeTab === 'users' && isSuperadmin && <AdminUsersView />}
       </main>

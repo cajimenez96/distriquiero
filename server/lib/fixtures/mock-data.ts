@@ -7,6 +7,7 @@ export interface MemoryStore {
   orders: any[];
   auditLogs: any[];
   banners: any[];
+  categories: any[];
 }
 
 export const memoryStore: MemoryStore = {
@@ -15,7 +16,8 @@ export const memoryStore: MemoryStore = {
   products: [],
   orders: [],
   auditLogs: [],
-  banners: []
+  banners: [],
+  categories: []
 };
 
 // Seed initial fallback memory store
@@ -358,9 +360,18 @@ export async function initSeedData() {
       _id: 'banner_01',
       title: 'Súper Ofertas por Bulto',
       imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuACHW-TFAXq2hk15NnHLXPboHg5but-Xn8FUeNUz-Y5SXSoemR3CZfRAY-sLgOVN5t58htPr6XAUnoCtcgnS28wAhamugpO0oOL7OlpHC8iNqjnbbhTL-z4RW5gcRPfp6CMvrp50wy31kHPTbVMJAtWlhvrSA7i3bJ5Q3ZgBnKGi1N-c3mrXe3vDdaWOCSnrZm0-ZfOBh9wo-FWAE0q9tz4HxDFRo4MPKAD27nU2DW4uHqD7WSc6Gvnrg',
-      targetCategory: 'todos',
+      targetCategory: 'offers',
       isActive: true,
       order: 1
     }
+  ];
+
+  memoryStore.categories = [
+    { _id: 'cat_01', name: 'Almacén', slug: 'almacen', order: 1, isActive: true },
+    { _id: 'cat_02', name: 'Bebidas', slug: 'bebidas', order: 2, isActive: true },
+    { _id: 'cat_03', name: 'Golosinas', slug: 'golosinas', order: 3, isActive: true },
+    { _id: 'cat_04', name: 'Limpieza', slug: 'limpieza', order: 4, isActive: true },
+    { _id: 'cat_05', name: 'Snacks', slug: 'snacks', order: 5, isActive: true },
+    { _id: 'cat_06', name: 'Sin categoría', slug: 'sin-categoria', order: 999, isActive: true }
   ];
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   ShoppingBag,
@@ -12,54 +12,49 @@ import {
   Box,
   Layers,
   Sparkles,
-  PhoneCall
-} from 'lucide-react';
-import { Product, OrderSubmissionResponse } from '../../types/index.ts';
-import { useCart } from '../../context/CartContext.tsx';
-import { useAuth } from '../../context/AuthContext.tsx';
-import { ProductCard } from './ProductCard.tsx';
-import { ProductDetailModal } from './ProductDetailModal.tsx';
-import { CartDrawer } from '../cart/CartDrawer.tsx';
-import { OrderConfirmationModal } from '../cart/OrderConfirmationModal.tsx';
+  PhoneCall,
+} from "lucide-react";
+import { Product, OrderSubmissionResponse, Banner, Category } from "../../types/index.ts";
+import { useCart } from "../../context/CartContext.tsx";
+import { useAuth } from "../../context/AuthContext.tsx";
+import { ProductCard } from "./ProductCard.tsx";
+import { ProductDetailModal } from "./ProductDetailModal.tsx";
+import { CartDrawer } from "../cart/CartDrawer.tsx";
+import { OrderConfirmationModal } from "../cart/OrderConfirmationModal.tsx";
+import { BannerCarousel } from "./BannerCarousel.tsx";
+import { CommercialInfoCards } from "./CommercialInfoCards.tsx";
 
 interface CatalogViewProps {
   onOpenAdmin: () => void;
 }
-
-const CATEGORIES = [
-  { id: 'all', label: 'Todas las Categorías', icon: Layers },
-  { id: 'offers', label: '🔥 Ofertas Mayoristas', icon: Flame },
-  { id: 'Almacén', label: 'Almacén', icon: Store },
-  { id: 'Bebidas', label: 'Bebidas', icon: Box },
-  { id: 'Golosinas', label: 'Golosinas', icon: Sparkles },
-  { id: 'Limpieza', label: 'Limpieza', icon: ShieldCheck },
-  { id: 'Snacks', label: 'Snacks', icon: Box }
-];
 
 export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
   const { totalItems, cartTotal } = useCart();
   const { isAuthenticated, user } = useAuth();
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [banners, setBanners] = useState<Array<{ _id?: string; title: string; imageUrl: string; targetCategory?: string; isActive: boolean }>>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('relevance');
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("relevance");
 
   // Modals state
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [orderConfirmation, setOrderConfirmation] = useState<OrderSubmissionResponse | null>(null);
+  const [orderConfirmation, setOrderConfirmation] =
+    useState<OrderSubmissionResponse | null>(null);
 
-  // Fetch catalog and banners from API
+  // Fetch catalog, banners and categories from API
   useEffect(() => {
     async function loadCatalog() {
       setIsLoading(true);
       try {
-        const [catRes, banRes] = await Promise.all([
-          fetch('/api/catalog'),
-          fetch('/api/catalog/banners')
+        const [catRes, banRes, categoryRes] = await Promise.all([
+          fetch("/api/catalog"),
+          fetch("/api/catalog/banners"),
+          fetch("/api/catalog/categories")
         ]);
         const catData = await catRes.json();
         if (catData.success) {
@@ -69,14 +64,42 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
         if (banData.success && Array.isArray(banData.banners)) {
           setBanners(banData.banners);
         }
+        const categoryData = await categoryRes.json();
+        if (categoryData.success && Array.isArray(categoryData.categories)) {
+          setCategories(categoryData.categories);
+        }
       } catch (e) {
-        console.error('Error fetching catalog or banners:', e);
+        console.error("Error fetching catalog data:", e);
       } finally {
         setIsLoading(false);
       }
     }
     loadCatalog();
   }, []);
+
+  // Dynamic categories items
+  const categoryItems = useMemo(() => {
+    const list = [
+      { id: "all", label: "Todas las Categorías", icon: Layers },
+      { id: "offers", label: "🔥 Ofertas Mayoristas", icon: Flame },
+    ];
+    categories.forEach((c) => {
+      let icon = Box;
+      const lower = c.name.toLowerCase();
+      if (lower.includes('almacén') || lower.includes('almacen')) icon = Store;
+      else if (lower.includes('bebida')) icon = Box;
+      else if (lower.includes('golosina')) icon = Sparkles;
+      else if (lower.includes('limpieza')) icon = ShieldCheck;
+      else if (lower.includes('snack')) icon = Box;
+
+      list.push({
+        id: c.name,
+        label: c.name,
+        icon
+      });
+    });
+    return list;
+  }, [categories]);
 
   // Filtered and sorted products
   const displayedProducts = useMemo(() => {
@@ -96,18 +119,18 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
 
         // Category match
         let matchesCat = true;
-        if (selectedCategory === 'offers') {
+        if (selectedCategory === "offers") {
           matchesCat = !!p.isOffer;
-        } else if (selectedCategory !== 'all') {
+        } else if (selectedCategory !== "all") {
           matchesCat = p.category === selectedCategory;
         }
 
         return matchesQuery && matchesCat;
       })
       .sort((a, b) => {
-        if (sortBy === 'price-asc') return a.priceBulk - b.priceBulk;
-        if (sortBy === 'price-desc') return b.priceBulk - a.priceBulk;
-        if (sortBy === 'savings') {
+        if (sortBy === "price-asc") return a.priceBulk - b.priceBulk;
+        if (sortBy === "price-desc") return b.priceBulk - a.priceBulk;
+        if (sortBy === "savings") {
           const savingsA = a.priceUnit * a.unitsPerBulk - a.priceBulk;
           const savingsB = b.priceUnit * b.unitsPerBulk - b.priceBulk;
           return savingsB - savingsA;
@@ -130,7 +153,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
           <span>Venta Mayorista Oficial & Bultos Cerrados de Fábrica</span>
         </span>
         <span className="hidden sm:inline">•</span>
-        <span className="text-[#25D366] font-bold">Monto mínimo sugerido para flete directo: $50.000</span>
+        <span className="text-[#25D366] font-bold">
+          Monto mínimo sugerido para flete directo: $50.000
+        </span>
       </div>
 
       {/* Main Commercial Header */}
@@ -172,10 +197,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
               onClick={onOpenAdmin}
               className={`h-10 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors ${
                 isAuthenticated
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  : 'border-gray-200 hover:bg-gray-100 text-gray-600'
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-gray-200 hover:bg-gray-100 text-gray-600"
               }`}
-              title={isAuthenticated ? `Sesión iniciada como ${user?.name || 'Admin'} - Ir al Panel` : 'Acceso al Panel de Administración'}
+              title={
+                isAuthenticated
+                  ? `Sesión iniciada como ${user?.name || "Admin"} - Ir al Panel`
+                  : "Acceso al Panel de Administración"
+              }
             >
               {isAuthenticated ? (
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -183,7 +212,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
                 <Lock className="w-3.5 h-3.5 text-gray-500" />
               )}
               <span className="hidden lg:inline">
-                {isAuthenticated ? 'Panel Operaciones' : 'Acceso Operaciones'}
+                {isAuthenticated ? "Panel Operaciones" : "Acceso Operaciones"}
               </span>
             </button>
 
@@ -220,97 +249,18 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 space-y-6">
-        {/* Promotional Hero Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ba1a1a] via-[#c62828] to-[#8c000f] text-white p-6 sm:p-8 shadow-md">
-          <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white">
-              <Flame className="w-3.5 h-3.5 text-yellow-300" />
-              <span>Semana de Precios Mayoristas Directos</span>
-            </div>
+        {/* Dynamic Top Banner Carousel */}
+        <BannerCarousel
+          banners={banners}
+          onSelectCategory={(cat) => setSelectedCategory(cat)}
+        />
 
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-              Abastecé tu comercio con bultos cerrados al mejor costo de plaza
-            </h2>
-
-            <p className="text-xs sm:text-sm text-white/90 font-medium leading-relaxed max-w-xl">
-              Golosinas, alimentos secos, bebidas y limpieza para kioscos, almacenes y despensas.
-              Cotización y coordinación inmediata por WhatsApp Business.
-            </p>
-
-            <div className="pt-2 flex items-center gap-3 flex-wrap">
-              <button
-                onClick={() => setSelectedCategory('offers')}
-                className="h-10 px-5 bg-white text-[#c62828] font-black text-xs rounded-xl shadow-md hover:bg-gray-100 active:scale-95 transition-all flex items-center gap-1.5"
-              >
-                <Flame className="w-4 h-4 text-[#c62828]" />
-                <span>Ver Ofertas Especiales</span>
-              </button>
-
-              <a
-                href="https://wa.me/5491138291002?text=Hola%20DistriQuiero,%20quiero%20consultar%20por%20la%20lista%20de%20precios%20mayorista."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-10 px-4 bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
-              >
-                <Send className="w-4 h-4" />
-                <span>Asesoría Comercial Directa</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Decorative watermark icon */}
-          <div className="absolute -right-8 -bottom-10 opacity-10 text-white pointer-events-none">
-            <Store className="w-72 h-72" />
-          </div>
-        </div>
-
-        {/* Dynamic Promotional Banners from Database */}
-        {banners.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {banners.map((b) => (
-              <div
-                key={b._id || b.title}
-                onClick={() => {
-                  if (b.targetCategory && b.targetCategory !== 'todos' && b.targetCategory !== 'all') {
-                    setSelectedCategory(b.targetCategory);
-                  } else {
-                    setSelectedCategory('offers');
-                  }
-                }}
-                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-r from-[#1f1f1f] to-[#2c2c2c] border border-gray-200/20 shadow-sm transition-all hover:shadow-md hover:border-[#c62828]"
-              >
-                <div className="flex items-center justify-between gap-4 p-4 text-white relative z-10">
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#c62828] text-[10px] font-black tracking-wider uppercase text-white">
-                      <Flame className="w-3 h-3 text-yellow-300" />
-                      Promo Activa
-                    </span>
-                    <h3 className="text-base sm:text-lg font-black tracking-tight text-white truncate">{b.title}</h3>
-                    <p className="text-xs text-gray-300 line-clamp-1">
-                      Clic para ver productos de esta promo mayorista
-                    </p>
-                  </div>
-                  {b.imageUrl && (
-                    <div className="w-20 h-16 sm:w-28 sm:h-20 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
-                      <img
-                        src={b.imageUrl}
-                        alt={b.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Commercial Trust & Value Proposition Cards */}
+        <CommercialInfoCards />
 
         {/* Categories Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {CATEGORIES.map((cat) => {
+          {categoryItems.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
 
@@ -320,8 +270,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold whitespace-nowrap transition-all duration-200 border ${
                   isSelected
-                    ? 'bg-[#c62828] text-white border-[#c62828] shadow-sm'
-                    : 'bg-[#f5f5f5] text-gray-700 border-gray-200 hover:bg-gray-200'
+                    ? "bg-[#c62828] text-white border-[#c62828] shadow-sm"
+                    : "bg-[#f5f5f5] text-gray-700 border-gray-200 hover:bg-gray-200"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -334,10 +284,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
         {/* Filter Controls & Result Count */}
         <div className="flex items-center justify-between flex-wrap gap-3 pb-1 border-b border-gray-100">
           <div className="text-xs text-gray-500 font-semibold">
-            Mostrando{' '}
+            Mostrando{" "}
             <strong className="text-gray-900 font-extrabold">
               {displayedProducts.length}
-            </strong>{' '}
+            </strong>{" "}
             artículos mayoristas disponibles
           </div>
 
@@ -369,14 +319,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
         ) : displayedProducts.length === 0 ? (
           <div className="py-20 text-center bg-[#f9f9f9] rounded-2xl border border-gray-200 p-8 space-y-3">
             <Store className="w-12 h-12 text-gray-300 mx-auto" />
-            <h3 className="text-lg font-bold text-gray-800">No encontramos productos en esta búsqueda</h3>
+            <h3 className="text-lg font-bold text-gray-800">
+              No encontramos productos en esta búsqueda
+            </h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              Intenta con otro término, marca o selecciona otra categoría para explorar todos los bultos disponibles.
+              Intenta con otro término, marca o selecciona otra categoría para
+              explorar todos los bultos disponibles.
             </p>
             <button
               onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
+                setSearchQuery("");
+                setSelectedCategory("all");
               }}
               className="px-4 py-2 bg-[#c62828] text-white text-xs font-bold rounded-xl shadow-sm hover:bg-[#a20513]"
             >
@@ -412,7 +365,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
                   Ver Pedido
                 </span>
                 <span className="block text-sm font-black leading-tight">
-                  ${cartTotal.toLocaleString('es-AR')}
+                  ${cartTotal.toLocaleString("es-AR")}
                 </span>
               </div>
             </div>
@@ -429,7 +382,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
       <footer className="bg-[#f5f5f5] border-t border-gray-200 mt-16 py-8 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-2">
-            <span className="font-black text-sm text-[#c62828]">DistriQuiero</span>
+            <span className="font-black text-sm text-[#c62828]">
+              DistriQuiero
+            </span>
             <span>• Soluciones Mayoristas & FMCG</span>
           </div>
 
@@ -467,7 +422,6 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenAdmin }) => {
         isOpen={!!orderConfirmation}
         onClose={() => setOrderConfirmation(null)}
       />
-
     </div>
   );
 };

@@ -6,14 +6,16 @@ import {
   ProductModel,
   OrderModel,
   AuditLogModel,
-  BannerModel
+  BannerModel,
+  CategoryModel
 } from '../models/index.ts';
 import type {
   IProduct,
   IOrder,
   IUser,
   IAuditLog,
-  IBanner
+  IBanner,
+  ICategory
 } from '../models/index.ts';
 import { isMongoConnected } from './mongodb.ts';
 
@@ -397,7 +399,7 @@ export const dbService = {
     userName: string;
     userRole: string;
     action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PAUSE' | 'STATUS_CHANGE';
-    entity: 'Product' | 'Order' | 'Banner' | 'User';
+    entity: 'Product' | 'Order' | 'Banner' | 'User' | 'Category';
     entityId: string;
     beforeSnapshot: any;
     afterSnapshot: any;
@@ -512,6 +514,464 @@ export const dbService = {
         console.warn(e);
       }
     }
-    return memoryStore.banners.filter(b => b.isActive);
+    return memoryStore.banners.filter(b => b.isActive).sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async getAllBannersAdmin() {
+    if (isMongoConnected()) {
+      try {
+        return await BannerModel.find().sort({ order: 1 }).lean();
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    return [...memoryStore.banners].sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async createBanner(
+    data: { title?: string; imageUrl: string; targetCategory?: string; isActive?: boolean; order?: number },
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    let created: any;
+    if (isMongoConnected()) {
+      try {
+        created = await BannerModel.create({
+          title: data.title || '',
+          imageUrl: data.imageUrl,
+          targetCategory: data.targetCategory || 'all',
+          isActive: data.isActive !== undefined ? data.isActive : true,
+          order: data.order !== undefined ? Number(data.order) : 0
+        });
+        created = created.toObject();
+      } catch (e) {
+        console.warn('Mongo create banner error:', e);
+      }
+    }
+
+    if (!created) {
+      created = {
+        _id: 'banner_' + Date.now(),
+        title: data.title || '',
+        imageUrl: data.imageUrl,
+        targetCategory: data.targetCategory || 'all',
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        order: data.order !== undefined ? Number(data.order) : 0
+      };
+      memoryStore.banners.push(created);
+    }
+
+    await this.createAuditLog({
+      userId: adminUser.id,
+      userName: adminUser.name,
+      userRole: adminUser.role,
+      action: 'CREATE',
+      entity: 'Banner',
+      entityId: created._id.toString(),
+      beforeSnapshot: null,
+      afterSnapshot: created
+    });
+
+    return created;
+  },
+
+  async updateBanner(
+    id: string,
+    data: Partial<IBanner>,
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    let beforeSnapshot: any = null;
+    let updated: any = null;
+
+    if (isMongoConnected()) {
+      try {
+        beforeSnapshot = await BannerModel.findById(id).lean();
+        if (beforeSnapshot) {
+          updated = await BannerModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+        }
+      } catch (e) {
+        console.warn('Mongo update banner error:', e);
+      }
+    }
+
+    if (!updated) {
+      const idx = memoryStore.banners.findIndex(b => b._id.toString() === id);
+      if (idx !== -1) {
+        beforeSnapshot = { ...memoryStore.banners[idx] };
+        memoryStore.banners[idx] = { ...memoryStore.banners[idx], ...data };
+        updated = memoryStore.banners[idx];
+      }
+    }
+
+    if (updated) {
+      await this.createAuditLog({
+        userId: adminUser.id,
+        userName: adminUser.name,
+        userRole: adminUser.role,
+        action: 'UPDATE',
+        entity: 'Banner',
+        entityId: id,
+        beforeSnapshot,
+        afterSnapshot: updated
+      });
+    }
+
+    return updated;
+  },
+
+  async deleteBanner(
+    id: string,
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    let beforeSnapshot: any = null;
+
+    if (isMongoConnected()) {
+      try {
+        beforeSnapshot = await BannerModel.findById(id).lean();
+        if (beforeSnapshot) {
+          await BannerModel.findByIdAndDelete(id);
+        }
+      } catch (e) {
+        console.warn('Mongo delete banner error:', e);
+      }
+    }
+
+    if (!beforeSnapshot) {
+      const idx = memoryStore.banners.findIndex(b => b._id.toString() === id);
+      if (idx !== -1) {
+        beforeSnapshot = memoryStore.banners[idx];
+        memoryStore.banners.splice(idx, 1);
+      }
+    }
+
+    if (beforeSnapshot) {
+      await this.createAuditLog({
+        userId: adminUser.id,
+        userName: adminUser.name,
+        userRole: adminUser.role,
+        action: 'DELETE',
+        entity: 'Banner',
+        entityId: id,
+        beforeSnapshot,
+        afterSnapshot: null
+      });
+      return true;
+    }
+
+    return false;
+  },
+
+  // Categories
+  async ensureInitialCategories() {
+    if (isMongoConnected()) {
+      try {
+        const count = await CategoryModel.countDocuments();
+        if (count === 0) {
+          console.log('🌱 Seeding initial categories into MongoDB...');
+          const initial = [
+            { name: 'Almacén', slug: 'almacen', order: 1, isActive: true },
+            { name: 'Bebidas', slug: 'bebidas', order: 2, isActive: true },
+            { name: 'Golosinas', slug: 'golosinas', order: 3, isActive: true },
+            { name: 'Limpieza', slug: 'limpieza', order: 4, isActive: true },
+            { name: 'Snacks', slug: 'snacks', order: 5, isActive: true },
+            { name: 'Sin categoría', slug: 'sin-categoria', order: 999, isActive: true }
+          ];
+          await CategoryModel.insertMany(initial);
+          console.log('✅ Initial categories seeded.');
+        }
+      } catch (e) {
+        console.warn('Error ensuring categories in mongo:', e);
+      }
+    }
+  },
+
+  async getCategories(includeInactive = false) {
+    await this.ensureInitialCategories();
+
+    let categories: any[] = [];
+    if (isMongoConnected()) {
+      try {
+        const query = includeInactive ? {} : { isActive: true };
+        categories = await CategoryModel.find(query).sort({ order: 1, name: 1 }).lean();
+
+        // Calculate product counts per category
+        const counts = await ProductModel.aggregate([
+          { $group: { _id: '$category', count: { $sum: 1 } } }
+        ]);
+        const countMap = new Map(counts.map(c => [c._id, c.count]));
+
+        return categories.map(cat => ({
+          ...cat,
+          productCount: countMap.get(cat.name) || 0
+        }));
+      } catch (e) {
+        console.warn('Mongo getCategories error:', e);
+      }
+    }
+
+    // Memory store fallback
+    const list = includeInactive ? memoryStore.categories : memoryStore.categories.filter(c => c.isActive);
+    return list.map(cat => ({
+      ...cat,
+      productCount: memoryStore.products.filter(p => p.category === cat.name).length
+    })).sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async createCategory(
+    data: { name: string; slug?: string; order?: number; isActive?: boolean },
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    const name = data.name.trim();
+    const slug = data.slug
+      ? data.slug.toLowerCase().trim()
+      : name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    let created: any;
+    if (isMongoConnected()) {
+      try {
+        const existing = await CategoryModel.findOne({
+          $or: [{ name: new RegExp(`^${name}$`, 'i') }, { slug }]
+        });
+        if (existing) {
+          throw new Error('Ya existe una categoría con ese nombre o slug.');
+        }
+
+        created = await CategoryModel.create({
+          name,
+          slug,
+          order: data.order !== undefined ? Number(data.order) : 0,
+          isActive: data.isActive !== undefined ? data.isActive : true
+        });
+        created = created.toObject();
+      } catch (e: any) {
+        if (e.message.includes('Ya existe')) throw e;
+        console.warn('Mongo create category error:', e);
+      }
+    }
+
+    if (!created) {
+      const existing = memoryStore.categories.find(c => c.name.toLowerCase() === name.toLowerCase() || c.slug === slug);
+      if (existing) {
+        throw new Error('Ya existe una categoría con ese nombre o slug.');
+      }
+      created = {
+        _id: 'cat_' + Date.now(),
+        name,
+        slug,
+        order: data.order !== undefined ? Number(data.order) : 0,
+        isActive: data.isActive !== undefined ? data.isActive : true
+      };
+      memoryStore.categories.push(created);
+    }
+
+    await this.createAuditLog({
+      userId: adminUser.id,
+      userName: adminUser.name,
+      userRole: adminUser.role,
+      action: 'CREATE',
+      entity: 'Category',
+      entityId: created._id.toString(),
+      beforeSnapshot: null,
+      afterSnapshot: created
+    });
+
+    return created;
+  },
+
+  async updateCategory(
+    id: string,
+    data: { name?: string; slug?: string; order?: number; isActive?: boolean },
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    let beforeSnapshot: any = null;
+    let updated: any = null;
+
+    if (isMongoConnected()) {
+      try {
+        beforeSnapshot = await CategoryModel.findById(id).lean();
+        if (beforeSnapshot) {
+          // If name is changing, check uniqueness and update products
+          if (data.name && data.name.trim() !== beforeSnapshot.name) {
+            const newName = data.name.trim();
+            const existing = await CategoryModel.findOne({
+              _id: { $ne: id },
+              name: new RegExp(`^${newName}$`, 'i')
+            });
+            if (existing) {
+              throw new Error('Ya existe otra categoría con ese nombre.');
+            }
+            await ProductModel.updateMany({ category: beforeSnapshot.name }, { $set: { category: newName } });
+          }
+
+          updated = await CategoryModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+        }
+      } catch (e: any) {
+        if (e.message.includes('Ya existe')) throw e;
+        console.warn('Mongo update category error:', e);
+      }
+    }
+
+    if (!updated) {
+      const idx = memoryStore.categories.findIndex(c => c._id.toString() === id);
+      if (idx !== -1) {
+        beforeSnapshot = { ...memoryStore.categories[idx] };
+        if (data.name && data.name.trim() !== beforeSnapshot.name) {
+          const newName = data.name.trim();
+          const existing = memoryStore.categories.find(c => c._id.toString() !== id && c.name.toLowerCase() === newName.toLowerCase());
+          if (existing) {
+            throw new Error('Ya existe otra categoría con ese nombre.');
+          }
+          memoryStore.products.forEach(p => {
+            if (p.category === beforeSnapshot.name) p.category = newName;
+          });
+        }
+        memoryStore.categories[idx] = { ...memoryStore.categories[idx], ...data };
+        updated = memoryStore.categories[idx];
+      }
+    }
+
+    if (updated) {
+      await this.createAuditLog({
+        userId: adminUser.id,
+        userName: adminUser.name,
+        userRole: adminUser.role,
+        action: 'UPDATE',
+        entity: 'Category',
+        entityId: id,
+        beforeSnapshot,
+        afterSnapshot: updated
+      });
+    }
+
+    return updated;
+  },
+
+  async deleteCategory(
+    id: string,
+    reassignToCategoryId: string | undefined,
+    adminUser: { id: string; name: string; role: string }
+  ) {
+    let catToDelete: any = null;
+    let targetCategoryName = 'Sin categoría';
+
+    if (isMongoConnected()) {
+      try {
+        catToDelete = await CategoryModel.findById(id).lean();
+        if (!catToDelete) return { success: false, error: 'Categoría no encontrada.' };
+
+        // Prevent deleting 'Sin categoría' directly
+        if (catToDelete.name.toLowerCase() === 'sin categoría' || catToDelete.slug === 'sin-categoria') {
+          throw new Error('No se puede eliminar la categoría de resguardo "Sin categoría".');
+        }
+
+        // Determine destination category for products
+        if (reassignToCategoryId && reassignToCategoryId !== id) {
+          const target = await CategoryModel.findById(reassignToCategoryId).lean();
+          if (target) {
+            targetCategoryName = target.name;
+          }
+        } else {
+          // Ensure "Sin categoría" exists
+          let defaultCat = await CategoryModel.findOne({ slug: 'sin-categoria' });
+          if (!defaultCat) {
+            defaultCat = await CategoryModel.create({
+              name: 'Sin categoría',
+              slug: 'sin-categoria',
+              order: 999,
+              isActive: true
+            });
+          }
+          targetCategoryName = defaultCat.name;
+        }
+
+        // Reassign products to target category
+        const reassignResult = await ProductModel.updateMany(
+          { category: catToDelete.name },
+          { $set: { category: targetCategoryName } }
+        );
+
+        // Update any banners pointing to this category
+        await BannerModel.updateMany(
+          { targetCategory: { $in: [catToDelete.name, catToDelete.slug] } },
+          { $set: { targetCategory: 'all' } }
+        );
+
+        // Delete the category
+        await CategoryModel.findByIdAndDelete(id);
+
+        await this.createAuditLog({
+          userId: adminUser.id,
+          userName: adminUser.name,
+          userRole: adminUser.role,
+          action: 'DELETE',
+          entity: 'Category',
+          entityId: id,
+          beforeSnapshot: { ...catToDelete, reassignedCount: reassignResult.modifiedCount, targetCategory: targetCategoryName },
+          afterSnapshot: null
+        });
+
+        return {
+          success: true,
+          reassignedCount: reassignResult.modifiedCount,
+          targetCategory: targetCategoryName
+        };
+      } catch (e: any) {
+        console.warn('Mongo delete category error:', e);
+        throw e;
+      }
+    }
+
+    // Memory fallback
+    const idx = memoryStore.categories.findIndex(c => c._id.toString() === id);
+    if (idx === -1) return { success: false, error: 'Categoría no encontrada.' };
+    catToDelete = memoryStore.categories[idx];
+
+    if (catToDelete.name.toLowerCase() === 'sin categoría' || catToDelete.slug === 'sin-categoria') {
+      throw new Error('No se puede eliminar la categoría de resguardo "Sin categoría".');
+    }
+
+    if (reassignToCategoryId && reassignToCategoryId !== id) {
+      const target = memoryStore.categories.find(c => c._id.toString() === reassignToCategoryId);
+      if (target) targetCategoryName = target.name;
+    } else {
+      let defaultCat = memoryStore.categories.find(c => c.slug === 'sin-categoria');
+      if (!defaultCat) {
+        defaultCat = { _id: 'cat_default', name: 'Sin categoría', slug: 'sin-categoria', order: 999, isActive: true };
+        memoryStore.categories.push(defaultCat);
+      }
+      targetCategoryName = defaultCat.name;
+    }
+
+    let reassignedCount = 0;
+    memoryStore.products.forEach(p => {
+      if (p.category === catToDelete.name) {
+        p.category = targetCategoryName;
+        reassignedCount++;
+      }
+    });
+
+    memoryStore.banners.forEach(b => {
+      if (b.targetCategory === catToDelete.name || b.targetCategory === catToDelete.slug) {
+        b.targetCategory = 'all';
+      }
+    });
+
+    memoryStore.categories.splice(idx, 1);
+
+    await this.createAuditLog({
+      userId: adminUser.id,
+      userName: adminUser.name,
+      userRole: adminUser.role,
+      action: 'DELETE',
+      entity: 'Category',
+      entityId: id,
+      beforeSnapshot: { ...catToDelete, reassignedCount, targetCategory: targetCategoryName },
+      afterSnapshot: null
+    });
+
+    return {
+      success: true,
+      reassignedCount,
+      targetCategory: targetCategoryName
+    };
   }
 };

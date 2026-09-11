@@ -73,7 +73,7 @@ export interface Order {
 }
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PAUSE' | 'STATUS_CHANGE';
-export type AuditEntity = 'Product' | 'Order' | 'Banner' | 'User';
+export type AuditEntity = 'Product' | 'Order' | 'Banner' | 'User' | 'Category';
 
 export interface AuditLog {
   _id: string;
@@ -95,6 +95,17 @@ export interface Banner {
   targetCategory?: string;
   isActive: boolean;
   order: number;
+}
+
+export interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  order: number;
+  isActive: boolean;
+  productCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface OrderSubmissionResponse {

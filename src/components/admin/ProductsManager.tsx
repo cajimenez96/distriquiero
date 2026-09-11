@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Eye, EyeOff, Edit3, Trash2, Box, Sparkles, Tag, Check } from 'lucide-react';
-import { Product } from '../../types/index.ts';
+import { Product, Category } from '../../types/index.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ProductDrawer } from './ProductDrawer.tsx';
@@ -10,6 +10,7 @@ export const ProductsManager: React.FC = () => {
   const { success, error } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -20,14 +21,18 @@ export const ProductsManager: React.FC = () => {
     if (!token) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/products', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setProducts(data.products);
+      const [prodRes, catRes] = await Promise.all([
+        fetch('/api/admin/products', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/catalog/categories')
+      ]);
+      const prodData = await prodRes.json();
+      const catData = await catRes.json();
+
+      if (prodData.success) {
+        setProducts(prodData.products);
+      }
+      if (catData.success && Array.isArray(catData.categories)) {
+        setCategories(catData.categories);
       }
     } catch (err) {
       error('Error al cargar catálogo de productos.');
@@ -139,7 +144,7 @@ export const ProductsManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          {['all', 'Almacén', 'Bebidas', 'Golosinas', 'Limpieza', 'Snacks'].map((cat) => (
+          {['all', ...categories.map((c) => c.name)].map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}

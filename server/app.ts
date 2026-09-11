@@ -9,6 +9,8 @@ import adminProductsRoutes from './routes/adminProducts.ts';
 import adminUploadRoutes from './routes/adminUpload.ts';
 import adminAuditRoutes from './routes/adminAudit.ts';
 import adminUsersRoutes from './routes/adminUsers.ts';
+import adminCategoriesRoutes from './routes/adminCategories.ts';
+import adminBannersRoutes from './routes/adminBanners.ts';
 
 dotenv.config();
 
@@ -57,5 +59,7 @@ app.use(['/api/admin/products', '/admin/products'], adminProductsRoutes);
 app.use(['/api/admin/upload', '/admin/upload'], adminUploadRoutes);
 app.use(['/api/admin/audit-logs', '/admin/audit-logs'], adminAuditRoutes);
 app.use(['/api/admin/users', '/admin/users'], adminUsersRoutes);
+app.use(['/api/admin/categories', '/admin/categories'], adminCategoriesRoutes);
+app.use(['/api/admin/banners', '/admin/banners'], adminBannersRoutes);
 
 export default app;
